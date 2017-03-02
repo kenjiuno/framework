@@ -1,0 +1,1129 @@
+<?xml version="1.0"?>
+
+<project xmlns:antcontrib="antlib:net.sf.antcontrib"
+         xmlns:artifact="antlib:org.apache.maven.artifact.ant"
+         name="Vaadin"
+         basedir="../" default="package-all">
+
+    <!--Call one of package-* targets unless you understand what you are doing. -->
+    <target name="package-all" depends="clean-all, init, build, javadoc, internal-package-war, internal-package-liferay, differences" description="Build public packages.">
+    </target>
+
+    <target name="package-jar" depends="clean-result, init, vaadin.jar" description="Create vaadin-x.y.z.jar file.">
+    </target>
+
+    <target name="package-war" depends="clean-result, init, build, javadoc, internal-package-war, differences">
+    </target>
+
+    <target name="package-liferay-zip" depends="clean-result, init, build, internal-package-liferay">
+    </target>
+
+    <!-- Locations of Ant task JARs - build properties not yet read at this point -->
+    <property name="ant.task.jar.antcontrib" value="build/lib/ant-contrib-1.0b3.jar" />
+    <property name="ant.task.jar.maven" value="build/lib/maven-ant-tasks-2.0.10.jar" />
+	
+	<path id="emma.lib" >
+		<pathelement location="build/lib/emma_ant.jar" />
+		<pathelement location="build/lib/emma-2.0.5312-patched.jar" />
+	</path>
+	
+	<taskdef resource="emma_ant.properties" classpathref="emma.lib" />	
+
+    <!-- ant contrib required for flow control (for loop, if, property override)   -->
+    <!-- Note that we have to use a namespace to avoid clash when running sub-ant. -->
+    <taskdef uri="antlib:net.sf.antcontrib" resource="net/sf/antcontrib/antlib.xml">
+        <classpath>
+            <pathelement location="${ant.task.jar.antcontrib}" />
+        </classpath>
+    </taskdef>
+
+    <!-- ant contrib for Maven integration -->
+    <path id="maven-ant-tasks.classpath" path="${ant.task.jar.maven}" />
+    <typedef resource="org/apache/maven/artifact/ant/antlib.xml"
+             uri="antlib:org.apache.maven.artifact.ant"
+             classpathref="maven-ant-tasks.classpath" />
+
+	
+    <!-- Clean results - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <target name="clean-result" depends="build.properties">
+
+        <!-- Clean build result directory. -->
+        <delete dir="${result-path}" includes="**/*" followsymlinks="false" defaultexcludes="false" includeemptydirs="true" failonerror="false"/>
+    </target>
+
+	<target name="build.properties">
+        <property file="build/build.properties" />
+		
+        <property file="build/VERSION.properties" />
+        <property file="build/GWT-VERSION.properties" />
+
+		<!-- result source and classes folders -->
+		<property name="result-src-core" value="${result-path}/src/core"/>
+		<property name="result-src-junit" value="${result-path}/src/junit"/>
+		<property name="result-src-testbench" value="${result-path}/src/testbench"/>
+		<property name="result-classes-core" value="${result-path}/classes/core"/>
+		<property name="result-classes-junit" value="${result-path}/classes/junit"/>
+		<property name="result-classes-testbench" value="${result-path}/classes/testbench"/>
+		<!-- Folder where Emma instrumented classes are placed (if Emma is used)-->
+		<property name="result-classes-core-for-emma-war" value="${result-path}/classes/emma-war"/>
+		<property name="result-classes-core-for-emma-junit" value="${result-path}/classes/emma-junit"/>
+
+	</target>
+    <target name="clean-all" depends="clean-result">
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Check versions.                                                    -->
+    <!-- ================================================================== -->
+
+    <!-- Java compiler version. -->
+    <target name="check-java-version">
+      <condition property="java.version.matches">
+        <or>
+          <equals arg1="${ant.java.version}" arg2="1.5"/>
+          <isset property="ignoreversion"/>
+        </or>
+      </condition>
+      <fail unless="java.version.matches" message="Java version is ${ant.java.version}, but Vaadin must be compiled with genuine Java 1.5 compiler. Use -Dignoreversion=1 for ant to ignore the version check."/>
+      <echo>Java version is ${ant.java.version} as required.</echo>
+    </target>
+
+    <!-- Check Servlet API version. -->
+    <!-- We must use Servlet API 2.3 to catch incompatibilities.. -->
+    <target name="check-servlet-version">
+      <available classpathref="compile.classpath" classname="javax.servlet.Servlet" property="servlet.available"/>
+      <fail unless="servlet.available" message="Java Servlet API library is not available."/>
+      <echo>Java Servlet API is available.</echo>
+
+      <available classpathref="compile.classpath" classname="javax.servlet.ServletRequestListener" property="servlet.version.is-2.4"/>
+      <fail if="servlet.version.is-2.4" message="Java Servlet API 2.4 or later detected. Vaadin must be compiled exactly with Servlet API 2.3."/>
+      <echo>Java Servlet API specification 2.3 used.</echo>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Initialization - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <!-- ================================================================== -->
+
+    <target name="init" depends="check-java-version, build.properties">
+        <!-- Current timestamp in different formats. -->
+        <tstamp>
+            <format property="build.date" pattern="yyyy-MM-dd"/>
+        </tstamp>
+        <tstamp>
+            <format property="build.date.compact" pattern="yyyyMMdd"/>
+        </tstamp>
+
+        <antcontrib:propertyregex property="version.major" input="${version}" regexp="([^\.]*)\.([^\.]*)\.([^\.]*)" select="\1"/>
+        <antcontrib:propertyregex property="version.minor" input="${version}" regexp="([^\.]*)\.([^\.]*)\.([^\.]*)" select="\2"/>
+        <antcontrib:propertyregex property="version.revision" input="${version}" regexp="([^\.]*)\.([^\.]*)\.([^\.]*)" select="\3"/>
+
+        <!-- Default full version name. -->
+        <!-- Nightly and other TeamCity builds will define their own. -->
+        <property name="version.full" value="${version}.dev-${build.date.compact}"/>
+        <echo>Base Version: ${version}</echo>
+        <echo>Full Version: ${version.full}</echo>
+
+        <!-- Other properties -->
+        <property file="build/html-style.properties" />
+
+        <echo>Vaadin package is: ${vaadin-package}</echo>
+
+        <!-- Create result dir unless already exists -->
+        <mkdir dir="${result-path}" />
+
+        <!-- Create dirs that might be used by the test coverage generation -->
+    	<mkdir dir="${result-classes-core-for-emma-war}" />
+    	<mkdir dir="${result-classes-core-for-emma-junit}" />
+    	<mkdir dir="${result-path}/coverage" />
+
+        <echo>We are using gwt version ${gwt-version}.</echo>
+
+        <!-- Destination files -->
+        <property name="base-name" value="${product-file}-${version.full}" />
+        <property name="lib-jar-name" value="${base-name}.jar" />
+        <property name="lib-sources-jar-name" value="${base-name}-sources.jar" />
+        <property name="lib-javadoc-jar-name" value="${base-name}-javadoc.jar" />
+        <property name="test-war-filename" value="${product-file}-tests-${version.full}.war"/>
+
+        <echo message="Prepared to build ${product-file} version ${version.full} packages" />
+
+        <!-- Output directory -->
+        <property name="output-dir" value="${result-path}/${base-name}" />
+        <mkdir dir="${output-dir}" />
+
+        <!-- Where widgetsets are written to.                             -->
+        <!-- When not building a package, widgetsets should be written to -->
+        <!-- WebContent/VAADIN/widgetsets, which needs to be set in       -->
+        <!-- init-nonpackage target before calling this main init target. -->
+        <property name="widgetsets-output-dir" value="${output-dir}/WebContent/VAADIN/widgetsets" />
+        
+
+        <!-- Create Output Directory Hierarchy -->
+        <mkdir dir="${output-dir}/WebContent" />
+        <mkdir dir="${output-dir}/WebContent/demo" />
+        <mkdir dir="${output-dir}/WebContent/docs" />
+        <mkdir dir="${output-dir}/WebContent/docs/api" />
+        <mkdir dir="${output-dir}/WebContent/tests" />
+        <mkdir dir="${output-dir}/WebContent/WEB-INF" />
+        <mkdir dir="${output-dir}/WebContent/WEB-INF/lib" />
+        <mkdir dir="${output-dir}/WebContent/WEB-INF/classes" />
+
+        <!-- Construct classpath used by java and javadoc compilation -->
+        <path id="compile.classpath">
+            <pathelement path="build/lib/servlet.jar" />
+            <fileset dir="lib/core">
+                <include name="**/*.jar"/>
+                
+                <!-- Exclude these as they contain Servlet API 2.4. -->
+                <!-- The gwt-*-noservlet.jar are then used instead. -->
+                <exclude name="**/servlet-api*.jar"/>
+                <exclude name="**/gwt-dev.jar"/>
+                <exclude name="**/gwt-user.jar"/>
+            </fileset>
+            <fileset dir="lib/tests">
+                    <include name="**/*.jar"/>
+            </fileset>
+        </path>
+        <path id="compile.classpath.server-side">
+            <path refid="compile.classpath"/>
+        </path>
+        <path id="compile.classpath.client-side">
+            <path refid="compile.classpath"/>
+            <pathelement path="${lib-gwt-user}" />
+            <pathelement path="${lib-gwt-dev}" />
+        </path>
+    </target>
+
+    <target name="internal-package-war">
+        <echo>Building Test WAR</echo>
+
+        <echo>Adding test class files and resources and launcher configuration.</echo>
+        <copy todir="${output-dir}/WebContent/WEB-INF/classes">
+            <fileset dir="${result-classes-testbench}">
+                <include name="${vaadin-package}/tests/**/*" />
+                <include name="${vaadin-package}/launcher/**" />
+            </fileset>
+            <fileset dir="${result-classes-junit}">
+            	<!-- VaadinClasses is used by both JUnit and TestBench tests -->
+                <include name="**/VaadinClasses*.class" />
+            </fileset>
+            <!-- test resources -->
+            <fileset dir="tests/testbench">
+                <include name="${vaadin-package}/tests/**/*" />
+                <!-- Pre-processed versions of these copied above -->
+                <exclude name="**/*.java" />
+                <exclude name="**/*.html" />
+                <exclude name="**/*.css" />
+                <exclude name="**/*.xml" />
+            </fileset>
+
+        	<!-- Include files required by the DemoLauncher/DevelopmentServerLauncher -->
+            <fileset dir="tests/testbench">
+        		<include name="${vaadin-package}/launcher/jetty-webdefault.xml" />
+        		<include name="${vaadin-package}/launcher/keystore" />
+            </fileset>
+        </copy>
+
+        <war warfile="${result-path}/${test-war-filename}"> 
+            <fileset dir="${output-dir}/WebContent">
+                <!-- Already in JAR -->
+            	<!-- Not excluded because used from WAR by portal integration tests
+                <exclude name="VAADIN/themes/base/**/*" />
+                <exclude name="VAADIN/themes/chameleon/**/*" />
+                <exclude name="VAADIN/themes/liferay/**/*" />
+                <exclude name="VAADIN/themes/reindeer/**/*" />
+                <exclude name="VAADIN/themes/runo/**/*" />
+                <exclude name="VAADIN/widgetsets/com.vaadin.terminal.gwt.DefaultWidgetSet/**/*" />
+                -->
+
+                <!-- Not needed for testing -->
+                <exclude name="docs/**/*" />
+                <exclude name="docs" />
+                
+                <include name="**/*" />
+            </fileset>
+        </war>
+    </target>
+
+    <target name="internal-package-liferay" depends="internal-package-war">
+        <!-- We assume the needed files are put in place by internal-package-war -->
+        <echo>Building Liferay zip</echo>
+
+        <zip zipfile="${result-path}/${base-name}-liferay.zip">
+            <zipfileset prefix="VAADIN/widgetsets/com.vaadin.portal.gwt.PortalDefaultWidgetSet" dir="${output-dir}/WebContent/VAADIN/widgetsets/com.vaadin.portal.gwt.PortalDefaultWidgetSet">
+                <patternset>
+                    <include name="**/*" />
+                </patternset>
+            </zipfileset>
+            <zipfileset prefix="VAADIN/themes" dir="${output-dir}/WebContent/VAADIN/themes">
+                <patternset>
+                    <include name="base/**/*" />
+                    <include name="chameleon/**/*" />
+                    <include name="liferay/**/*" />
+                    <include name="runo/**/*" />
+                    <include name="reindeer/**/*" />
+                </patternset>
+            </zipfileset>
+            
+        </zip>
+        
+        <echo>##teamcity[publishArtifacts '${result-path}/${base-name}-liferay.zip']</echo>
+    </target>
+
+    <!-- Build server-side, client-side, libraries, and tests.                   -->
+    <!-- The client-side needs to be built before vaadin.jar, because the vaadin.jar -->
+    <!-- require the default widgetset and doing otherwise would build it twice. -->
+    <!-- However, since compiling the server-side is required by the client-side -->
+    <!-- compilation, the server-side will actually be built before it.          -->
+    <target name="build"
+            depends="compile-server-side, compile-tests, compile-client-side, vaadin.jar, vaadin-sources.jar"
+            description="Build package required files, without packing them.">
+    </target>
+
+    <target name="compile-server-side" depends="compile-core, webcontent"/>
+
+    <!-- Copy and preprocess sources for packaging 
+    NOTE: Replaces <version></version> tags with build version tag for some "textual" files
+    -->
+    <target name="preprocess-src" depends="fetch-release-notes-tickets">
+        <!--
+        Source directories in the project are
+         * src (Vaadin core)
+         * tests/testbench (TestBench test cases)
+         * tests/server-side (Server-side JUnit test cases)
+         * tests/client-side (Client-side JUnit test cases)
+
+        These are copied to 
+         * ${result-path}/src/core
+         * ${result-path}/src/tests
+         * ${result-path}/src/junit
+
+        And compiled to 
+         * ${result-path}/classes/core
+         * ${result-path}/classes/tests
+         * ${result-path}/classes/junit
+         
+        Java/HTML/CSS/XML files are filtered so the license is added and the version is set. 
+        Other files are just copied.
+        -->
+        
+        <loadfile property="VaadinApache2LicenseForJavaFiles" srcFile="build/VaadinApache2LicenseForJavaFiles.txt" />
+        
+        <mkdir dir="${result-path}/src" />
+        <mkdir dir="${result-src-core}" />
+        <mkdir dir="${result-src-testbench}" />
+        <mkdir dir="${result-src-junit}" />
+
+        <patternset id="preprocessable-files">
+            <include name="**/*.java" />
+            <include name="**/*.html" />
+            <include name="**/*.css" />
+            <include name="**/*.xml" />
+        </patternset>
+        <patternset id="non-preprocessable-files">
+            <exclude name="**/.svn" />
+            <exclude name="**/*.java" />
+            <exclude name="**/*.html" />
+            <exclude name="**/*.css" />
+            <exclude name="**/*.xml" />
+        </patternset>
+        <filterset id="version-and-license">
+            <filter token="VaadinApache2LicenseForJavaFiles" value="${VaadinApache2LicenseForJavaFiles}" />
+            <filter token="VERSION" value="${version.full}" />
+        </filterset>
+        
+        <!-- Adds a style class to JavaDoc <pre> tags for style customization. -->
+        <filterset id="pre-css-style" begintoken="     * &lt;" endtoken="&gt;">
+            <filter token="pre" value="     * &lt;pre class='code'&gt;" />
+        </filterset>
+
+        <echo>Copying src directory and processing copied files.</echo>
+        <echo>Replacing &lt;version&gt; tag with build version for java/html/css/xml files.</echo>
+        <copy todir="${result-src-core}" overwrite="yes">
+            <filterset refid="version-and-license"/>
+            <filterset refid="pre-css-style"/>
+            <fileset dir="src">
+                <patternset refid="preprocessable-files" />
+            </fileset>
+        </copy>
+
+        <copy todir="${result-src-testbench}">
+            <filterset refid="version-and-license"/>
+            <fileset dir="tests/testbench">
+                <patternset refid="preprocessable-files" />
+            </fileset>
+        </copy>
+        <copy todir="${result-src-junit}">
+            <filterset refid="version-and-license"/>
+            <fileset dir="tests/server-side">
+                <patternset refid="preprocessable-files" />
+            </fileset>
+            <fileset dir="tests/client-side">
+                <patternset refid="preprocessable-files" />
+            </fileset>
+        </copy>
+                
+        <!-- Unify mix usage of mac/Linux/Win characters -->
+        <echo>Unifying mix usage of Mac/Linux/Win linefeeds for java/html/css/xml files.</echo>
+        <fixcrlf srcdir="${result-path}/src" eol="crlf" tablength="4" tab="asis" includes="**/*.java **/*.html **/*.css **/*.xml" />
+
+        <!-- Add other files such as images, these are not filtered or processed by fixcrlf task -->
+        <echo>Copying non java/html/css/xml files such as images.</echo>
+        <copy todir="${result-src-core}">
+            <fileset dir="src">
+                <patternset refid="non-preprocessable-files" />
+            </fileset>
+        </copy>
+        <copy todir="${result-src-testbench}">
+            <fileset dir="tests/testbench">
+                <patternset refid="non-preprocessable-files" />
+            </fileset>
+        </copy>
+        <copy todir="${result-src-junit}">
+            <fileset dir="tests/server-side">
+                <patternset refid="non-preprocessable-files" />
+            </fileset>
+            <fileset dir="tests/client-side">
+                <patternset refid="non-preprocessable-files" />
+            </fileset>
+        </copy>
+
+    </target>
+
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+  WebContent
+   - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -->
+    <target name="webcontent" depends="preprocess-src,defaulttheme">
+
+        <!-- copy 3rd part libraries used by tests -->
+        <copy todir="${output-dir}/WebContent/tests/lib">
+            <fileset dir="lib/core">
+                <include name="jetty/**/*" />
+            </fileset>
+        	<fileset dir="build/lib">
+        		<include name="emma-2.0.5312-patched.jar" />
+        	</fileset>
+        </copy>
+        <!-- Used by SQLContainer UI tests -->
+        <copy todir="${output-dir}/WebContent/WEB-INF/lib">
+            <fileset dir="lib/tests/sqlcontainer">
+                <include name="hsqldb.jar" />
+            </fileset>
+        </copy>
+
+        <!-- Add WebContent -->
+        <echo>Adding VAADIN/themes and META-INF</echo>
+        <copy todir="${output-dir}/WebContent">
+            <fileset dir="WebContent">
+                <exclude name="**/.svn" />
+                <include name="VAADIN/themes/**/*" />
+                <include name="META-INF/**/*" />
+            	<include name="statictestfiles/**" />
+            </fileset>
+        </copy>
+
+        <!-- Add servlet and portlet configuration files from WebContent -->
+        <copy todir="${output-dir}/WebContent/WEB-INF">
+            <fileset dir="WebContent/WEB-INF">
+                <include name="liferay-*.xml" />
+                <include name="portlet.xml" />
+                <include name="web.xml" />
+            </fileset>
+        </copy>
+        
+        <!-- These should go to various JARs -->
+        <copy todir="${output-dir}/WebContent">
+            <filterchain>
+                <expandproperties />
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="version" value="${version.full}" />
+                </replacetokens>
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="version-minor" value="${version.major}.${version.minor}" />
+                </replacetokens>
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="builddate" value="${build.date}" />
+                </replacetokens>
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="gwt-version" value="${gwt-version}" />
+                </replacetokens>
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="release-notes-tickets" value="${release-notes-tickets}" />
+                </replacetokens>
+            </filterchain>
+            <fileset dir="WebContent">
+                <exclude name="**/.svn" />
+                <include name="release-notes.html" />
+                <include name="license.html" />
+                <include name="css/**" />
+                <include name="img/**" />
+            </fileset>
+        </copy>
+    </target>
+
+    <target name="compile-core" depends="init, preprocess-src">
+        <echo>Compiling src (server-side)</echo>
+    	<!-- Compile core sources first as the other sources depend on these -->
+        <mkdir dir="${result-classes-core}" />
+        <javac source="1.5" target="1.5" classpathref="compile.classpath.server-side" destdir="${result-classes-core}" debug="true" encoding="UTF-8" includeantruntime="false">
+            <src path="${result-src-core}"/>
+        </javac>
+    </target>
+	
+    <target name="compile-tests" depends="compile-core">
+        <echo>Compiling src (Server and client side JUnit tests)</echo>
+    	<!-- Compile server and client side JUnit tests -->
+        <mkdir dir="${result-classes-junit}" />
+        <javac source="1.5" target="1.5" classpathref="compile.classpath.server-side" destdir="${result-classes-junit}" debug="true" encoding="UTF-8" includeantruntime="false">
+        	<classpath path="${result-classes-core}"></classpath>
+            <src path="${result-src-junit}"/>
+        </javac>
+    	
+        <echo>Compiling src (TestBench tests)</echo>
+    	<!-- Compile TestBench tests -->
+        <mkdir dir="${result-classes-testbench}" />
+        <javac source="1.5" target="1.5" classpathref="compile.classpath.server-side" destdir="${result-classes-testbench}" debug="true" encoding="UTF-8" includeantruntime="false">
+        	<classpath path="${result-classes-junit}"></classpath>
+        	<classpath path="${result-classes-core}"></classpath>
+            <src path="${result-src-testbench}"/>
+        </javac>
+    	
+    </target>
+
+    <target name="compile-helpers" depends="init">
+        <javac source="1.5" target="1.5" srcdir="build/buildhelpers" classpath="build/smartsprites/lib/smartsprites-0.2.3-itmill.jar" includeantruntime="false"/>
+    </target>
+    
+    <target name="defaulttheme" depends="init, compile-helpers">
+        <echo>Combining default themes css files</echo>
+        <java classname="com.vaadin.buildhelpers.CompileDefaultTheme" failonerror="yes" fork="yes">
+            <arg value="-version" />
+            <arg value="${version.full}"/>
+            <classpath>
+                <pathelement location="build/buildhelpers" />
+                <fileset dir="build/smartsprites/lib">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
+            <jvmarg value="-Djava.awt.headless=true"/>
+        </java>
+    </target>
+
+    <target name="testtarget">
+        <echo>TEST TARGET CALLED</echo>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Widget Set Compilation                                             -->
+    <!-- ================================================================== -->
+    <!-- Widget set compilation process:                                    -->
+    <!--   1. Preprocess sources                                            -->
+    <!--   2. Compile server-side java                                      -->
+    <!--   3. Generate widget set definitions and classes                   -->
+    <!--   4. Compile widget sets                                           -->
+    <!--                                                                    -->
+    <!-- Widget sets can be built for two purposes:                         -->
+    <!--   * for building installation packages                             -->
+    <!--   * for building single widget sets during development             -->
+    <!--      Targets: widgetset-<name>                                     -->
+
+    <target name="remove-widgetset-gwt-tmp">
+        <echo>Removing widgetset temp files</echo>
+        <delete dir="${widgetsets-output-dir}/.gwt-tmp" includeemptydirs="true"/>
+        <!-- This is generated by GWT 2.3+ for rpcPolicyManifest and symbolMaps, cannot disable -->
+        <delete dir="${widgetsets-output-dir}/WEB-INF" includeemptydirs="true" failonerror="false" />
+    </target>
+
+    <!-- The widgetset generator is currently compiled along with rest of server-side Java. -->    
+    <target name="compile-widgetset-generator" depends="compile-core"/>
+
+
+    <path id="widgetset-compile-classpath">
+        <pathelement location="${lib-gwt-user}" />
+        <pathelement location="${lib-gwt-dev}" />
+        <pathelement location="${lib-gwt-validation}" />
+        <pathelement location="${lib-gwt-validation-src}" />
+        <pathelement location="${result-classes-core}" />
+        <pathelement location="${result-src-core}" />
+    </path>
+    
+    <target name="compile-widgetset" description="Compiles the widgetset given as the first parameter">
+        <fail unless="widgetset" message="No widgetset parameter set"/>
+        <property name="widgetset-style" value="OBF" />
+    	<property name="widgetset-localWorkers" value="4" />
+    	<property name="widgetset-extraParams" value="" />
+        <echo>Compiling widgetset ${widgetset}. Output directory: ${widgetsets-output-dir}</echo>
+        <java classname="com.google.gwt.dev.Compiler" failonerror="yes" fork="yes" maxmemory="512m">
+            <classpath refid="widgetset-compile-classpath"/>
+            
+            <arg value="-war" />
+            <arg value="${widgetsets-output-dir}" />
+            <arg value="-style" />
+            <arg value="${widgetset-style}" />
+            <arg value="-localWorkers" />
+            <arg value="${widgetset-localWorkers}" />
+        	<arg line="${widgetset-extraParams}" />
+            <arg value="${widgetset}" />
+
+            <jvmarg value="-Xss8M"/>
+            <jvmarg value="-XX:MaxPermSize=256M"/>  
+            <jvmarg value="-Djava.awt.headless=true"/>
+        </java>
+        <antcall target="remove-widgetset-gwt-tmp"/>
+        
+        <echo>Compiled ${widgetset}</echo>
+    </target>
+    
+    <target name="compile-widgetset-default">
+        <antcall target="compile-widgetset">
+            <param name="widgetset" value="com.vaadin.terminal.gwt.DefaultWidgetSet"/>
+        </antcall>
+    </target>
+    
+    <target name="compile-widgetset-portal-default" unless="compile.only.default-widgetset">
+        <antcall target="compile-widgetset">
+            <param name="widgetset" value="com.vaadin.portal.gwt.PortalDefaultWidgetSet"/>
+        </antcall>
+    </target>
+
+    <!-- Compiles all widgetsets.                                         -->
+    <!-- This is called when building packages and when compiling all     -->
+    <!-- widgetsets, but not when compiling individual widgetsets.        -->
+    <target name="compile-client-side" depends="compile-server-side">
+        <echo>Compiling widget sets in parallel.</echo>
+        <parallel threadsperprocessor="1">
+            <antcall target="compile-widgetset-default"/>
+            <antcall target="compile-widgetset-portal-default"/>
+        </parallel>
+    </target>
+
+    <!-- Definitions for building local components, i.e., not for an installation package. -->
+    <target name="init-nonpackage" depends="build.properties">
+        <!-- Definitions for building the client-side. -->
+        <property name="widgetsets-output-dir" value="WebContent/VAADIN/widgetsets" />
+
+        <echo>We are using ${lib-gwt-dev}.</echo>
+        <echo>Widget sets output dir: ${widgetsets-output-dir}</echo>
+    </target>
+
+    <!-- Builds all widgetsets locally, i.e., not for an installation package. -->
+    <target name="widgetsets" depends="init-nonpackage, init, compile-widgetset-generator, compile-client-side"/>
+
+    <!-- Build each widgetset locally, i.e., not for an installation package. -->
+    <target name="widgetset-default" depends="init-nonpackage, init, compile-widgetset-generator, compile-widgetset-default"/>
+    <target name="widgetset-portal-default" depends="init-nonpackage, init, compile-widgetset-generator, compile-widgetset-portal-default"/>
+
+    <!-- ================================================================== -->
+    <!-- Libraries and Tests                                                -->
+    <!-- ================================================================== -->
+
+    <!-- Compile the Vaadin library JAR.                                    -->
+    <!-- Need only the default widgetset for this, but can't depend         -->
+    <!-- specifically on it, because dependence does not see compiled       -->
+    <!-- individual widgetsets, because antcall does not fulfill            -->
+    <!-- dependencies.                                                      -->
+    <target name="vaadin.jar" depends="compile-server-side, compile-client-side, compile-helpers">
+        <echo>Creating JAR (server-side) ${lib-jar-name}</echo>
+        <!-- Create Vaadin JAR -->
+        <mkdir dir="${output-dir}/META-INF"/>
+        <echo file="${output-dir}/META-INF/VERSION">${version.full}</echo> 
+        <echo file="${output-dir}/META-INF/GWT-VERSION">${gwt-version}</echo> 
+        	
+		<emma enabled="${emma.enabled}" >
+			<instr instrpath="${result-classes-core}"
+				destdir="${result-classes-core-for-emma-war}"
+				mode="copy"
+				metadatafile="${result-path}/war.es"
+				merge="false"
+			>
+				<filter includes="com.vaadin.*" />
+				<filter excludes="com.vaadin.terminal.gwt.*" />
+			</instr>
+		</emma>    	
+    	
+        <jar jarfile="${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}"
+             compress="true" manifest="build/package/META-INF/MANIFEST.MF" duplicate="preserve">
+            <metainf dir="${output-dir}/META-INF"/>
+            <manifest>
+                <attribute name="Vaadin-Package-Version" value="1" />
+                <attribute name="Vaadin-Widgetsets" value="com.vaadin.terminal.gwt.DefaultWidgetSet" />
+                <attribute name="Implementation-Vendor" value="Vaadin Ltd" />
+                <attribute name="Implementation-URL" value="http://vaadin.com" />
+                <attribute name="Implementation-Version" value="${version.full}" />
+                <attribute name="GWT-Version" value="${gwt-version}" />
+                <attribute name="GWT-Version-Dependencies" value="${gwt-version-dependencies}" />
+                <attribute name="Bundle-Version" value="${version.full}" />
+            </manifest>
+            <!-- Include any instrumented class files before the normal classes -->
+            <fileset dir="${result-classes-core-for-emma-war}" />
+            <fileset dir="${result-classes-core}"/>
+            <!-- add sources -->
+            <fileset dir="${result-src-core}"/>
+            <fileset dir="${output-dir}/WebContent">
+                <patternset>
+                    <include name="VAADIN/widgetsets/com.vaadin.terminal.gwt.DefaultWidgetSet/**/*" />
+                    <include name="VAADIN/themes/base/**/*" />
+                    <include name="VAADIN/themes/chameleon/**/*" />
+                    <include name="VAADIN/themes/liferay/**/*" />
+                    <include name="VAADIN/themes/runo/**/*" />
+                    <include name="VAADIN/themes/reindeer/**/*" />
+                    
+                    <include name="release-notes.html" />
+                    <include name="license.html" />
+                    <include name="css/**" />
+                    <include name="img/**" />
+                </patternset>
+            </fileset>
+        </jar>
+        
+        <!-- Generate the Export-Package attribute in the manifest of the JAR -->
+        <java classname="com.vaadin.buildhelpers.GeneratePackageExports" failonerror="true" fork="yes">
+            <arg value="${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}"/>
+            <jvmarg value="-Dvaadin.version=${version.full}" />
+            <classpath>
+                <pathelement location="build/buildhelpers" />
+            </classpath>
+        </java>
+        
+        <echo>##teamcity[publishArtifacts '${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}']</echo>
+    </target>
+
+    <target name="vaadin-sources.jar" depends="init">
+        <jar file="${result-path}/${lib-sources-jar-name}" compress="true">
+            <fileset dir="${result-src-core}">
+                <patternset>
+                    <include name="**/*.java" />
+                </patternset>
+            </fileset>
+            <fileset dir="${output-dir}/WebContent">
+                <patternset>
+                    <include name="release-notes.html" />
+                    <include name="license.html" />
+                    <include name="css/**" />
+                    <include name="img/**" />
+                </patternset>
+            </fileset>
+        </jar>
+    </target>
+    
+    <!-- ================================================================== -->
+    <!-- Documentation                                                      -->
+    <!-- ================================================================== -->
+
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  -->
+    <!-- Documentation: Add Javadoc to doc                                  -->
+    <!-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  -->
+    <target name="javadoc" depends="init, preprocess-src">
+        <property name="javadoc.destdir" value="${output-dir}/WebContent/docs/api"/>
+        
+        <javadoc destdir="${javadoc.destdir}" author="true" version="true" use="true" windowtitle="${product-name}" classpathref="compile.classpath.client-side">
+            <packageset dir="${result-src-core}"/>
+            <doctitle>${javadoc.doctitle}</doctitle>
+            <!-- <header><![CDATA[<script type="text/javascript" src=".html-style/style.js"></script>]]></header> -->
+            <bottom>${javadoc.bottom}</bottom>
+            <link offline="true" href="http://java.sun.com/j2se/1.5.0/docs/api/" packagelistLoc="build/javadoc/j2se-1.5.0" />
+            <link offline="true" href="http://java.sun.com/j2ee/1.4/docs/api/" packagelistLoc="build/javadoc/j2ee-1.4" />
+        </javadoc>
+
+        <!-- Create a javadoc jar, mainly for Maven -->
+        <jar file="${result-path}/${lib-javadoc-jar-name}" compress="true">
+            <fileset dir="${javadoc.destdir}">
+                <patternset>
+                    <include name="**" />
+                </patternset>
+            </fileset>
+            <fileset dir="${output-dir}/WebContent">
+                <patternset>
+                    <include name="release-notes.html" />
+                    <include name="license.html" />
+                    <include name="css/**" />
+                    <include name="img/**" />
+                </patternset>
+            </fileset>
+        </jar>
+
+        <!-- Append local style definitions. -->
+        <echo>Appending local style definitions</echo>
+        <concat destfile="${javadoc.destdir}/stylesheet.css" append="yes">
+            <filelist dir="build/javadoc" files="stylesheet-local.css"/>
+        </concat>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Difference to previous release package.                            -->
+    <!-- ================================================================== -->
+
+    <!-- This should be called after the Linux package is ready. -->
+    <target name="differences" if="build.differences">
+        <exec executable="python" searchpath="true" failonerror="true" output="${result-path}/differences.txt">
+            <arg value="build/bin/package-diff.py"/>
+            <arg value="${version.full}"/>
+        </exec>
+
+        <echo>##teamcity[publishArtifacts '${result-path}/differences.txt']</echo>
+    </target>
+	
+	 <!-- ================================================================== -->
+     <!-- Retrieves tickets closed for the milestone for the release.        -->
+     <!-- ================================================================== -->
+    <target name="fetch-release-notes-tickets" if="build.release-notes">
+    	<property name="tsv" location="${result-path}/release-notes-tickets.tsv"/>
+    	<property name="url" value="http://dev.vaadin.com/query?status=closed&amp;milestone=Vaadin+${version.full}&amp;resolution=fixed&amp;format=tab"/>
+    	<get dest="${tsv}" src="${url}"/>
+        <exec executable="python" searchpath="true" failonerror="true" outputproperty="release-notes-tickets">
+            <arg value="build/bin/closed-to-rn.py"/>
+            <arg value="${tsv}"/>
+        </exec>
+    </target>
+    
+    <!-- ================================================================== -->
+    <!-- Custom build.                                                     -->
+    <!-- ================================================================== -->
+
+    <!-- Main target for the custom build. -->
+    <!-- Need to read custom build configuration before calling clean-result -->
+    <target name="custom-build" depends="custom-build-init, clean-result, nightly-init, init, build">
+    </target>
+
+
+    <!-- Initialize a custom build. -->
+    <target name="custom-build-init">
+        <echo>Preparing a custom build with properties file: ${build.properties.file}</echo>
+
+        <!-- Custom build support -->
+        <antcontrib:if>
+            <isset property="build.properties.file"/>
+            <then>
+                <tstamp>
+                    <format property="build.date.compact" pattern="yyyyMMdd"/>
+                </tstamp>
+                <property file="${build.properties.file}" />
+                <property name="version" value="${vaadin.version}"/>
+                <property name="version.full" value="${version}-${build.date.compact}"/>
+            </then>
+            <!-- Otherwise version is set by the target "init" -->
+        </antcontrib:if>
+    </target>
+
+    <target name="custom-build-maven-publish">
+        <antcall target="nightly-maven-publish" />
+    </target>
+
+
+    <!-- ================================================================== -->
+    <!-- Nightly build.                                                     -->
+    <!-- ================================================================== -->
+
+    <!-- Main target for the nightly build. -->
+    <target name="nightly" depends="clean-result, nightly-init, init, build, javadoc, differences">
+    </target>
+
+
+    <!-- Initialize a nightly build. -->
+    <target name="nightly-init" depends="build.properties">
+
+        <!-- Mandatory parameters. -->
+        <fail unless="build.number" message="The build.number property must be defined."/>
+        <fail unless="nightly.publish" message="The nightly.publish property must be defined."/>
+
+        <!-- Optional parameters. -->
+        <property name="build.tag" value="dev"/>
+
+        <echo>Base version: ${version}</echo>
+        <echo>Build number: ${build.number}</echo>
+        <echo>Build tag: ${build.tag}</echo>
+        <echo>Publish target: ${nightly.publish}</echo>
+        <echo>Demo publish target: ${nightly.demo.publish}</echo>
+
+        <!-- Set build number. -->
+        <tstamp>
+            <format property="nightly.date" pattern="yyyyMMdd"/>
+        </tstamp>
+        <property name="version.full" value="${version}.${build.tag}-${nightly.date}-c${build.number}"/>
+
+        <echo>Version will be: ${version.full}</echo>
+
+        <!-- Tell TeamCity the build name. Have to do it this way, because   -->
+        <!-- this script needs to get the plain build number as a parameter. -->
+        <echo>##teamcity[buildNumber '${version}-c${build.number}']</echo>
+    </target>
+
+    <target name="nightly-teamcity-publish">
+        <!-- Publish as a TeamCity artifact. -->
+        <echo>##teamcity[publishArtifacts '${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}']</echo>
+    </target>
+
+    <!-- Copies the nightly build artifacts to the download server. -->
+    <target name="nightly-download-publish" if="nightly.publish">
+        <!-- Publish to the download server. -->
+        <echo>Installing ${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name} to ${nightly.publish}</echo>
+        <echo>Hopefully you have permissions for the copy operation with SSH.</echo>
+
+        <!-- FIXME tries to publish a ZIP; how does the download site handle these? -->
+        <property name="package.filename" value="${result-path}/${base-name}.zip"/>
+
+        <!-- Copy the linux installation package and the JAR. -->
+        <exec executable="scp" searchpath="true" resultproperty="nightly.install.scp.result">
+            <arg value="-B"/>
+            <arg value="${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}"/>
+            <arg value="${package.filename}"/>
+            <arg value="${nightly.publish}"/>
+        </exec>
+
+        <echo>Result: ${nightly.install.scp.result}</echo>
+    </target>
+
+    <!-- Copies the nightly build artifacts to the download server. -->
+    <target name="nightly-tests-publish" if="nightly.demo.publish" depends="internal-package-war">
+        <fail unless="version.major" message="Major version must be defined in version.major"/>
+        <fail unless="version.minor" message="Major version must be defined in version.minor"/>
+        
+        
+        <!-- Publish to the demo server. -->
+        <property name="src" value="${result-path}/${test-war-filename}"/>
+        <property name="target" value="${nightly.demo.publish}/${version.major}.${version.minor}-${build.tag}.war"/>
+        
+        <echo>Installing ${src} to ${target}</echo>
+
+        <!-- Copy the linux installation package and the JAR. -->
+        <exec executable="scp" searchpath="true" resultproperty="nightly.demo.install.scp.result">
+            <arg value="-B"/>
+            <arg value="${src}"/>
+            <arg value="${target}"/>
+        </exec>
+
+        <echo>Result: ${nightly.install.scp.result}</echo>
+    </target>
+
+    <target name="nightly-publish" depends="nightly-teamcity-publish, nightly-download-publish, nightly-tests-publish">
+    </target>
+
+    
+    <target name="nightly-maven-pom.xml">
+        <echo>Creating pom.xml for nightly build</echo>
+        <property name="vaadin.version.maven" value="${version.major}.${version.minor}-SNAPSHOT" />
+        <copy tofile="build/maven/pom.xml">
+            <filterchain>
+                <expandproperties />
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="MAVEN-VERSION" value="${vaadin.version.maven}" />
+                </replacetokens>
+            </filterchain>
+            <fileset file="build/maven/pom-template.xml"/>
+        </copy>
+    </target>
+    
+    <target name="nightly-maven-publish" depends="nightly-maven-pom.xml">
+        <property file="${gpg.passphrase.file}" />
+
+        <echo>Publishing ${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name} to Maven repository</echo>
+        <artifact:mvn failonerror="true">
+            <arg value="gpg:sign-and-deploy-file"/>
+            <!-- .. is a workaround as maven runs in the build directory -->
+            <sysproperty key="file" value="../${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}" />
+            <sysproperty key="pomFile" value="maven/pom.xml" />
+            <sysproperty key="repositoryId" value="vaadin-snapshots" />
+            <sysproperty key="url" value="${snapshot.repository.url}" />
+            <sysproperty key="gpg.passphrase" value="${gpg.passphrase}" />
+        </artifact:mvn>
+    </target>
+
+    <target name="local-maven-pom.xml">
+        <echo>Creating pom.xml for local test build</echo>
+        <fail unless="version.major" message="Major version must be defined in version.major"/>
+        <fail unless="version.minor" message="Major version must be defined in version.minor"/>
+        <property name="vaadin.version.maven" value="${version.major}.${version.minor}" />
+        <copy tofile="build/maven/pom.xml">
+            <filterchain>
+                <expandproperties />
+                <replacetokens begintoken="@" endtoken="@">
+                    <token key="MAVEN-VERSION" value="${vaadin.version.maven}" />
+                </replacetokens>
+            </filterchain>
+            <fileset file="build/maven/pom-template.xml"/>
+        </copy>
+    </target>
+    
+    <target name="local-maven-publish" depends="local-maven-pom.xml">
+        <echo>Publishing ${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name} to the local Maven repository</echo>
+        <artifact:mvn>
+            <arg value="install:install-file"/>
+            <!-- .. is a workaround as maven runs in the build directory -->
+            <sysproperty key="file" value="../${output-dir}/WebContent/WEB-INF/lib/${lib-jar-name}" />
+            <sysproperty key="pomFile" value="maven/pom.xml" />
+        </artifact:mvn>
+    </target>
+
+    <!-- ================================================================== -->
+    <!-- Automated tests.                                                   -->
+    <!-- ================================================================== -->
+
+    <target name="tests" depends="compile-tests, internal-package-war">
+        <!-- Run all different types of tests in parallel to decrease testing time -->
+        <parallel threadcount="3">
+        	<sequential>
+                <!-- Sleep before running integration tests so testbench tests have time to compile and start -->
+                <sleep minutes="4" /> 
+                <antcall inheritrefs="true" inheritall="true" target="integration-tests"></antcall>
+        	</sequential>
+            <antcall inheritrefs="true" inheritall="true" target="testbench-tests"></antcall>
+            <antcall inheritrefs="true" inheritall="true" target="server-side-tests"></antcall>
+        </parallel>
+        
+        <!-- Create a combined report from each test's sub report -->
+		<emma enabled="${emma.enabled}" >
+			<merge file="${result-path}/combined.es">
+				<fileset dir="${result-path}" >
+					<include name="*.ec" />
+					<include name="*.em" />
+				</fileset>
+			</merge>
+			<report sourcepath="${result-src-core}" >
+				<fileset dir="${result-path}" >
+					<include name="combined.es" />
+				</fileset>
+				
+				<txt outfile="../${result-path}/coverage/coverage-combined/coverage.txt" />
+				<html outfile="../${result-path}/coverage/coverage-combined/coverage.html" />
+			</report>
+		</emma>    	    	
+        <echo>##teamcity[publishArtifacts '${result-path}/coverage']</echo>
+    </target>
+    
+    <!-- Assumes java classes have been compiled but depends does not work out well as this is run from a <parallel> task-->
+    <target name="server-side-tests" unless="tests.serverside.skip" depends="compile-tests">
+		<emma enabled="${emma.enabled}" >
+			<instr instrpath="${result-classes-core}"
+				destdir="${result-classes-core-for-emma-junit}"
+				mode="copy"
+				metadatafile="${result-path}/unittests.em"
+   			    merge="false"
+		        >
+				<filter includes="com.vaadin.*" />
+				<filter excludes="com.vaadin.terminal.gwt.*" />
+			</instr>
+		</emma>    	    	
+        <junit printsummary="yes"> 
+            <classpath> 
+                <pathelement path="${result-classes-core-for-emma-junit}" />
+                <pathelement path="${result-classes-core}" />
+                <pathelement path="${result-classes-junit}" />
+            	<path refid="emma.lib" />
+                <path refid="compile.classpath"/>
+            </classpath>
+        	<jvmarg value="-Demma.coverage.out.file=../${result-path}/unittests.ec" />
+
+            <batchtest fork="yes">
+                <fileset dir="tests/server-side" includes="**/*.java" excludes="**/Abstract*.java,**/VaadinClasses.java" />
+                <fileset dir="tests/client-side" includes="**/*.java" excludes="**/Abstract*.java" />
+            </batchtest>
+        </junit>
+		<emma enabled="${emma.enabled}" >
+			<report sourcepath="${result-src-core}" >
+				<fileset dir="${result-path}" >
+					<include name="unittests.*" />
+				</fileset>
+				
+				<txt outfile="../${result-path}/coverage/coverage-unittests/unittests_coverage.txt" />
+				<html outfile="../${result-path}/coverage/coverage-unittests/unittests_coverage.html" />
+			</report>
+    	</emma>
+        <echo>##teamcity[publishArtifacts '${result-path}/coverage']</echo>
+    </target>
+
+    <!-- Assumes java classes have been compiled but depends does not work out well as this is run from a <parallel> task-->
+    <target name="testbench-tests" unless="tests.testbench.skip">
+        <fail unless="product-file" message="The 'product-file' property must be defined."/>
+        <fail unless="version" message="The 'version' property must be defined."/>
+
+        <echo>Version: ${version.full}</echo>
+
+        <!-- Parameters for the test.xml script. -->
+        <fail unless="com.vaadin.testbench.tester.host" message="The 'com.vaadin.testbench.tester.host' property must be defined."/>
+        <fail unless="com.vaadin.testbench.deployment.url" message="The 'com.vaadin.testbench.deployment.url' property must be defined."/>
+        <fail unless="com.vaadin.testbench.lib.dir" message="The 'com.vaadin.testbench.lib.dir' property must be defined."/>
+
+        <property name="com.vaadin.testbench.screenshot.block.error" value="0.025"/>
+        <property name="com.vaadin.testbench.debug" value="false"/>
+        <property name="package.name" value="${base-name}"/>
+
+        <!-- Only Linux tests allowed. TODO: Generalize this. -->
+        <property name="package.filename" value="${result-path}/${test-war-filename}"/>
+
+        <!-- Run the separate test script. -->
+        <ant antfile="tests/test.xml" target="test-package" inheritall="false" inheritrefs="true">
+            <!-- This is provided so that the test script can copy the -->
+            <!-- "tests" classes after unpacking the package.          -->
+            <property name="output-dir" value="${output-dir}"/>
+
+            <!-- Convert tests to run multiple times if failed. -->
+            <property name="retries" value="2"/>
+                
+            <property name="package.filename" value="${package.filename}"/>
+            <property name="testing.testarea" value="/tmp/testarea"/>
+            <property name="package.name" value="${package.name}"/>
+            <property name="test-output-dir" value="../build/test-output" />
+            <property name="com.vaadin.testbench.tester.host" value="${com.vaadin.testbench.tester.host}"/>
+            <property name="com.vaadin.testbench.deployment.url" value="${com.vaadin.testbench.deployment.url}"/>
+            <property name="com.vaadin.testbench.lib.dir" value="${com.vaadin.testbench.lib.dir}"/>
+            <property name="com.vaadin.testbench.debug" value="${com.vaadin.testbench.debug}"/>
+            <property name="com.vaadin.testbench.screenshot.block.error" value="${com.vaadin.testbench.screenshot.block.error}"/>
+        </ant>
+    	
+		<emma enabled="${emma.enabled}" >
+			<report sourcepath="${result-src-core}" >
+				<fileset dir="${result-path}" >
+					<include name="war.*" />
+				</fileset>
+				
+				<txt outfile="../${result-path}/coverage/coverage-testbench/testbench_coverage.txt" />
+				<html outfile="../${result-path}/coverage/coverage-testbench/testbench_coverage.html" />
+			</report>
+		</emma>    	
+        <echo>##teamcity[publishArtifacts '${result-path}/coverage/']</echo>
+    </target>
+
+    <!-- Assumes java classes have been compiled but depends does not work out well as this is run from a <parallel> task-->
+    <target name="integration-tests" unless="tests.integration.skip">
+        <!-- Parameters for the test.xml script. -->
+        <fail unless="com.vaadin.testbench.tester.host" message="The 'com.vaadin.testbench.tester.host' property must be defined."/>
+        <fail unless="com.vaadin.testbench.lib.dir" message="The 'com.vaadin.testbench.lib.dir' property must be defined."/>
+        <fail unless="sshkey.file" message="The 'sshkey.file' property must be defined."/>
+
+        <!-- Empty passphrase if no passphrase defined -->
+        <property name="passphrase" value="" />
+        <property name="tests.war" location="${result-path}/${test-war-filename}" />
+        
+        <!-- Run the separate test script. -->
+        <ant antfile="tests/integration_tests.xml" target="integration-test-all" inheritall="false" inheritrefs="true">
+              <!-- This is provided so that the test script can copy the -->
+              <!-- "tests" classes after unpacking the package.          -->
+              <property name="output-dir" value="${output-dir}"/>
+
+              <property name="com.vaadin.testbench.tester.host" value="${com.vaadin.testbench.tester.host}"/>
+              <property name="com.vaadin.testbench.lib.dir" value="${com.vaadin.testbench.lib.dir}"/>
+              <property name="sshkey.file" value="${sshkey.file}" />
+              <property name="passphrase" value="${passphrase}" />
+              <property name="demo.war" value="${tests.war}"/>
+        </ant>
+    </target>
+</project>
+
+<!-- These are for emacs. -->
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: xml
+sgml-omittag:nil
+sgml-shorttag:nil
+sgml-namecase-general:nil
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:4
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/etc/sgml/catalog" "/usr/share/xemacs21/xemacs-packages/etc/psgml-dtds/CATALOG")
+sgml-local-ecat-files:("ECAT" "~/sgml/ECAT" "/usr/share/sgml/ECAT" "/usr/local/share/sgml/ECAT" "/usr/local/lib/sgml/ECAT")
+End:
+-->

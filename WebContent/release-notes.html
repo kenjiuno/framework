@@ -1,0 +1,598 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>Vaadin Framework @version@</title>
+    <link rel="stylesheet" type="text/css" href="css/styles.css" />
+
+<!--[if lte IE 6]>
+		<link rel="stylesheet" type="text/css" href="css/ie.css" />
+		<![endif]-->
+    <style type="text/css">
+.nested-list ol {
+	counter-reset: item
+}
+
+.nested-list li {
+	display: block
+}
+
+.nested-list li:before {
+	content: counters(item, ".") ". ";
+	counter-increment: item
+}
+    </style>
+  </head>
+
+  <body>
+
+    <div id="header">
+      <h1>Vaadin &ndash; thinking of U and I</h1>
+      <div id="version">
+        <strong>Version @version@</strong>
+      </div>
+    </div> <!-- /header -->
+
+	<div id="content">
+
+      <p>Version @version@ built on @builddate@.</p>
+
+      <!-- ================================================================ -->
+      <h2 id="tableofcontents">Release Notes for Vaadin Framework @version@</h2>
+      <ul>
+        <li><a href="#overview">Overview of Vaadin @version-minor@ Release</a></li>
+        <li><a href="#changes">Changes in Vaadin @version@</a></li>
+        <li><a href="#security-fixes">Security fixes in Vaadin @version-minor@</a></li>
+        <li><a href="#enhancements">Enhancements in Vaadin @version-minor@</a></li>
+        <li><a href="#backwardsincompatibilities">Backwards
+            incompatible changes in Vaadin @version-minor@</a></li>
+        <li><a href="#overview">Package contents</a></li>
+        <li><a href="#dependencies">Vaadin @version@ dependencies</a></li>
+        <li><a href="#upgrading">Upgrading to Vaadin @version-minor@</a></li>
+        <li><a href="#knownissues">Known problems and limitations in
+            Vaadin @version@</a></li>
+        <li><a href="#supportedversions">Supported technologies</a></li>
+        <li><a href="#vaadinontheweb">Vaadin on the Web</a></li>
+      </ul>
+
+      <p>
+        <b>Vaadin</b> is a Java application development framework for building modern web
+        applications that look great, perform well and make you and your users
+        happy. Vaadin is available under the Apache 2 license (see <tt>license.html</tt>
+        in the JAR).
+      </p>
+
+      <!-- ================================================================ -->
+      <h2 id="overview">Overview of Vaadin @version@ Release</h2>
+
+      <p>
+        Vaadin @version@ is a maintenance release that includes a number of important bug
+        fixes.
+      </p>
+
+      <!-- ================================================================ -->
+      <!-- Change log                                                       -->
+      <!-- For maintenance releases, this should be above the enhancements  -->
+
+      <h3 id="changes">Changes in Vaadin @version@</h3>
+
+      <p>
+        This release includes the following closed issues:
+      </p>
+
+      <ul>
+@release-notes-tickets@
+      </ul>
+          
+      <p>
+        The <a
+        href="http://dev.vaadin.com/query?status=closed&resolution=fixed&milestone=Vaadin+@version@&order=priority">full
+        list of the closed issues</a> can be found at <tt>dev.vaadin.com</tt>.
+      </p>
+
+      <!-- ================================================================ -->
+      <h2 id="security-fixes">Security fixes in Vaadin Framework 6.8.17</h2>
+
+      <p>
+        Vaadin 6.8.17 fixes a minor security issue. 
+      </p>
+      <p>
+        The issue is that Vaadin exposes server side timings to the client
+        also when in production mode. This makes it easier for an attacker to
+        increase the severity of DoS attacks. 
+      </p>
+      
+      <!-- ================================================================ -->
+      <h2 id="security-fixes">Security fixes in Vaadin Framework 6.8.14</h2>
+
+      <p>
+        Vaadin 6.8.14 fixes a security issue discovered during an
+        internal review. 
+      </p>
+      <p>
+      	The issue affects OptionGroup with item icons. Proper escaping of the 
+      	src-attribute on the client side was not ensured when using icons for 
+      	OptionGroup items. This could potentially, in certain situations, allow
+      	a malicious user to inject content, such as javascript, in order to 
+      	perform a cross-site scripting (XSS) attack.
+      </p>
+      <p>
+      	In order for an application to be vulnerable, user provided input must
+      	be used to form a URL used to display an icon for an OptionGroup item, 
+      	when showing that Option Group to other users.<br/>
+      	The vulnerability has been classified as moderate, due to it's limited
+      	application. 
+      </p>
+      
+      <!-- ================================================================ -->
+      <h2 id="security-fixes">Security fixes in Vaadin Framework 6.8.10</h2>
+
+      <p>
+        Vaadin 6.8.10 fixes a critical security issue discovered during an
+        internal review. All users of Vaadin portlets are strongly urged to
+        upgrade immediately.
+      </p>
+      <p>
+       Vaadin portlets (Portlet 2.0 - JSR-286) prior to Vaadin version 6.8.10
+       are vulnerable to an attack that allows a remote user who has access to
+       a portlet on the portal to read files in the portlet deployment directory
+       using specially crafted resource requests provided the attacker knows the
+       file name.
+      </p>
+      <p>
+      	The vulnerability has been classified as critical as it potentially
+      	allows unauthorized access to portlet object code and configuration
+      	information. Files outside the portlet deployment directory are not
+      	accessible using this vulnerability. Portlets that are not visible
+      	to the remote user are not vulnerable to this attack.
+      	Servlet deployments are not vulnerable to this attack.
+      </p>
+      <p>
+      	All users of Vaadin portlets are strongly urged to upgrade Vaadin
+      	in the portlets immediately. Where that is not possible, access to
+      	affected portlets should be restricted to trusted users only.
+      </p>
+
+      <!-- ================================================================ -->
+      <h2 id="security-fixes">Security fixes in Vaadin Framework 6.8.8</h2>
+
+      <p>
+        Vaadin 6.8.8 fixes a security issue discovered during an internal
+        review. 
+      </p>
+      <p>
+       Allowing unfiltered user input as the key in a map used for
+       communication in a Vaadin UI component may enable a cross-site
+       scripting (XSS) attack on a Vaadin application. Specifically, in
+       certain cases it is possible to use a specially-crafted debug ID to
+       inject arbitrary Javascript to be executed in an end user's browser.
+       This requires specific actions both from the application developer and
+       from the end user.
+      </p>
+      <p>
+      	The vulnerability has been classified as moderate as it potentially
+      	allows unauthorized access to server or user data but is
+      	significantly limited by factors such as default settings, requires
+      	certain behavior from the application or is very difficult to
+      	exploit.
+      </p>
+      <p>
+        Certain Vaadin layout components store metadata about their child
+        components in maps, keyed by the component ID. The IDs are not
+        escaped when the maps are sent to the client as JSON objects,
+        allowing a specially-crafted debug ID assigned to a child component
+        to inject arbitrary JSON, or, in some cases, arbitrary Javascript to
+        be executed by the user's browser.
+      </p>
+      <p>
+        To be used as an attack, this requires an application to accept
+        malicious user input and assign it, unfiltered, as the debug ID of a
+        component in another user's application instance. The following Core
+        Vaadin layouts are vulnerable when containing a component with a
+        malicious debug ID:
+      </p>
+      <ul>
+        <li>HorizontalLayout, VerticalLayout, OrderedLayout, ExpandLayout, and
+        FormLayout when using the setComponentAlignment() and
+        setExpandRatio() methods;</li>
+        <li>CssLayout subclasses that override the protected getCss() method.</li>
+      </ul>
+      <p>
+        Additionally, any third-party components which invoke the
+        com.vaadin.terminal.PaintTarget#addAttribute(String, Map) method are
+        vulnerable if unfiltered user input is allowed as the keys of the
+        Map argument.
+      </p>
+      
+      
+      <!-- ================================================================ -->
+      <h3 id="enhancements">Enhancements in Vaadin @version-minor@</h3>
+
+      <p>
+        Below is a list of enchacements in the current minor release branch, first
+        released in @version-minor@.0.
+      </p>
+
+      <ul>
+        <li>
+          Native scrolling support for Android and iOS (<a href="http://dev.vaadin.com/ticket/8763">#8763</a>)
+          <ul>
+            <li>
+              Non-native scrolling implementation used in iOS 5 because of an iOS bug (see <a href="http://dev.vaadin.com/ticket/8792">#8792</a>)
+            </li>
+          </ul>
+        </li>
+        <li>
+          Possibility to fire <b>Button</b> click events on the server-side (<a href="http://dev.vaadin.com/ticket/8209">#8209</a>)
+        </li>
+        <li>
+          Possibility to use HTML inside a <b>Button</b> caption (<a href="http://dev.vaadin.com/ticket/8663">#8663</a>)
+        </li>
+        <li>
+          Possibility to set "alternative text" (<tt>alt</tt> attribute) for the <b>Embedded</b> component (<a href="http://dev.vaadin.com/ticket/6085">#6085</a>)
+        </li>
+        <li>
+          Possibility to query the browser window width and height on the server-side (<a href="http://dev.vaadin.com/ticket/5655">#5655</a>)
+        </li>
+        <li>
+          Keyboard navigation in <b>TabSheet</b>  (<a href="http://dev.vaadin.com/ticket/5100">#5100</a>)
+        </li>
+        <li>
+          Max/min limits for splitter position in <b>SplitPanel</b> (<a href="http://dev.vaadin.com/ticket/1744">#1744</a>)
+        </li>
+        <li>
+          Extended day range in month view to six full weeks in <b>DateField</b> (<a href="http://dev.vaadin.com/ticket/6718">#6718</a>)
+        </li>
+        <li>
+          Non-collapsible <b>Table</b> columns (<a href="http://dev.vaadin.com/ticket/7495">#7495</a>)
+        </li>
+        <li>
+          Selecting a <b>TabSheet</b> tab by its position or a <b>Tab</b> instance (<a href="http://dev.vaadin.com/ticket/8203">#8203</a>)
+        </li>
+        <li>
+          Getting a component by its index or the index of a given component in <b>CssLayout</b> (<a href="http://dev.vaadin.com/ticket/7614">#7614</a>)
+        </li>
+        <li>
+          Removing all <b>Validators</b> of a <b>Field</b> at once (<a href="http://dev.vaadin.com/ticket/8307">#8307</a>)
+        </li>
+        <li>
+          Debug IDs unique to a window, not the whole application (<a href="http://dev.vaadin.com/ticket/5109">#5109</a>)
+        </li>
+        <li>
+          Larger default size for the debug window (<a href="http://dev.vaadin.com/ticket/8523">#8523</a>)
+        </li>
+        <li>
+          Compatibility with Google SuperDevMode (<a href="http://dev.vaadin.com/ticket/8924">#8924</a>)
+        </li>
+        <li>
+          An add-on for handling broken classloaders (<a href="http://dev.vaadin.com/ticket/8447">#8447</a>)
+          <ul>
+            <li>
+              Available in Vaadin Directory: <a href="http://vaadin.com/addon/vaadin-application-server-class-loader-workaround">Vaadin-application-server-class-loader-workaround</a>
+            </li>
+          </ul>
+        </li>
+      </ul>
+
+      <!-- ================================================================ -->
+
+      <h3 id="backwardsincompatibilities">Backwards incompatible changes in Vaadin
+      @version-minor@</h3>
+
+      <p>
+        The following backward incompatible changes have been introduced since Vaadin 6.7:
+      </p>
+
+      <ul>
+        <li>Splitter position in <b>SplitPanel</b> is now <tt>float</tt> instead if <tt>int</tt> (<a href="http://dev.vaadin.com/ticket/4296">#4296</a>)</li>
+      </ul>
+
+      <!--  <h2 id="security-fixes">Security fixes in Vaadin @version-minor@</h2>-->
+
+      <!-- ================================================================ -->
+      <h3 id="overview">Package Contents</h3>
+
+      <p>
+        Vaadin Framework is distributed as a single JAR file. Inside the JAR you will
+        find:
+      </p>
+
+      <ul>
+        <li>Vaadin server and client side classes (/com)</li>
+        <li>Vaadin server and client side sources (/com)</li>
+        <li>The default widget set (/VAADIN/widgetsets)</li>
+        <li>Themes: Runo, Reindeer and Chameleon (/VAADIN/themes)</li>
+        <li>Release notes (/release-notes.html)</li>
+        <li>Licensing information (/license.html)</li>
+      </ul>
+
+      <!-- ================================================================ -->
+      <h3 id="dependencies">Vaadin @version@ dependencies</h3>
+
+      <p>
+		Vaadin uses GWT @gwt-version@ for widget set compilation. GWT can be
+		downloaded from <a href="http://code.google.com/webtoolkit/">http://code.google.com/webtoolkit/</a>.
+		GWT can also be automatically downloaded by the Vaadin Plug-in for
+		Eclipse. Please note that GWT @gwt-version@ requires the <i>validation-api-1.0.0.GA.jar</i>
+		and <i>validation-api-1.0.0.GA-sources.jar</i> files in addition to <i>gwt-dev.jar</i>
+		and <i>gwt-user.jar</i> for widget set compilation.
+      </p>
+
+      <!-- ================================================================ -->
+      <h2 id="upgrading">Upgrading to Vaadin @version-minor@</h2>
+
+      <p>
+        When upgrading from an earlier Vaadin version, you must:
+      </p>
+
+      <ul>
+        <li>Recompile your classes using the new Vaadin JAR. Binary
+          compatibility is only guaranteed for maintenance releases of
+          Vaadin.</li>
+        <li>Recompile any add-ons you have created using the new Vaadin
+          JAR.</li>
+        <li>Recompile your widget set using the new Vaadin JAR and the
+          newly compiled add-ons.</li>
+        <li>If you have extracted a theme from the Vaadin JAR, you need
+          to update it with the theme provided in the new Vaadin JAR.</li>
+      </ul>
+
+      <p>Remember also to refresh the project in your IDE to ensure that the new version
+      of everything is in use.</p>
+
+      <p>Using the "?debug" URL parameter you can verify that the
+        version of the servlet (JAR), the theme and the widgetset all match.</p>
+
+      <p>
+        <b>Eclipse</b> users should always check if there is a new version of the Eclipse
+        Plug-in available. The Eclipse Plug-in can be used to update the Vaadin version in
+        the project (Project properties &raquo; Vaadin).
+      </p>
+
+      <p>
+        <b>Maven</b> users should update the Vaadin dependency version in the
+        <tt>pom.xml</tt> unless it is defined as <tt>LATEST</tt> . You must also ensure
+        that the GWT dependency uses the correct version and recompile your project and
+        your widget set.
+		</p>
+
+      <p>
+		<b>Liferay and other portal</b> users must install the new
+		vaadin-@version@.jar as
+		<tt>ROOT/WEB-INF/lib/vaadin.jar</tt> in the portal. Additionally the
+		contents of the <tt>VAADIN</tt> folder from the JAR must be extracted
+		to the <tt>ROOT/html/VAADIN</tt> directory in the Liferay
+		installation. If your portal uses custom widgets, install the latest
+		version of <a
+			href="http://vaadin.com/directory#addon/vaadin-control-panel-for-liferay">Vaadin
+			Control Panel for Liferay</a> for easy widget set compilation.
+      </p>
+
+      <h3>Upgrading from Vaadin 6.5 or earlier</h3>
+      
+      <p>
+		If you are upgrading from 6.5.x or earlier, notice that Vaadin
+		@version@ uses GWT @gwt-version@. Upgrade your dependencies as
+		necessary. See <a href="#dependencies">the dependencies</a> section
+		for more information.
+      </p>
+
+      <h3 id="widgetupgrade">Upgrading from Vaadin 6.1 or earlier</h3>
+
+      <p>
+        The way widget sets are created was completely changed in Vaadin 6.2.  Existing
+        projects, where custom widgets (a custom widget set) are used, must be migrated
+        when upgrading to Vaadin 6.2 or later.  Projects where the default widget set is
+        used do not need migration.  See <a
+        href="http://vaadin.com/download/release/6.2/6.2.0/release-notes.html">Vaadin
+        6.2.0 release notes</a> for more details.
+      </p>
+
+      <h4 id="gae">Notes and Limitations for Google App Engine</h4>
+
+      <p>
+        The following instructions and limitations apply when you run a Vaadin application
+        under the Google App Engine.
+      </p>
+
+      <ul>
+        <li><p> Applications must use <b>GAEApplicationServlet</b> instead of
+        <b>ApplicationServlet</b> in <tt>web.xml</tt>.  </p></li>
+
+        <li><p>
+            Session support must be enabled in
+					<tt>appengine-web.xml</tt>
+					:
+				</p> <pre>    &lt;sessions-enabled&gt;true&lt;/sessions-enabled&gt;</pre>
+        </li>
+
+        <li><p>Avoid using the session for storage, usual App Engine
+            limitations apply (no synchronization, i.e, unreliable).</p>
+        </li>
+
+        <li><p>
+            Vaadin uses memcache for mutex, the key is of the form
+            <tt>_vmutex&lt;sessionid&gt;</tt>.
+          </p>
+        </li>
+
+        <li>
+          <p> The Vaadin <b>WebApplicationContext</b> class is serialized separately into
+          memcache and datastore; the memcache key is <tt>_vac&lt;sessionid&gt;</tt> and
+          the datastore entity kind is <tt>_vac</tt> with identifiers of the type
+          <tt>_vac&lt;sessionid&gt;</tt>.</p>
+        </li>
+
+        <li>
+          <p>DO NOT update application state when serving an <b>ApplicationResource</b>
+          (e.g <b>ClassResource</b>.<i>getStream()</i>).</p>
+        </li>
+
+        <li>
+          <p>
+            AVOID (or be very careful when) updating application state in a
+            <b>TransactionListener</b> or a <b>HttpServletRequestListener</b> - they are
+            called even when the application is not locked and won't be serialized (e.g
+            <b>ApplicationResource</b>), and changes can thus go missing (it should be
+            safe to update things that can be safely discarded later - i.e valid only for
+            the current request)
+          </p>
+        </li>
+
+        <li>
+          <p>
+            The application remains locked during uploads - a progress bar is not
+            possible
+          </p>
+        </li>
+      </ul>
+
+      <p>
+        For other known problems, see open tickets at developer site <a
+        href="http://dev.vaadin.com/">dev.vaadin.com</a>.
+      </p>
+
+      <!-- ================================================================ -->
+      <h2 id="supportedversions">Supported technologies</h2>
+
+      <p>
+        Vaadin is based on <b>Java 5</b> and it is also compatible with most other
+        operating system supporting Java 5 or newer. Vaadin is supported on the following
+        <b>operating systems</b>:
+      </p>
+
+      <ul>
+        <li>Windows</li>
+        <li>Linux</li>
+        <li>Mac OS X</li>
+      </ul>
+
+      <p>
+        Vaadin requires <b>Java Servlet API 2.3</b> but also supports later versions and
+        should work with any Java application server that conforms to the standard. The
+        following <b>application servers</b> are supported:
+      </p>
+
+      <ul>
+        <li>Apache Tomcat, version 4.1-7.0</li>
+        <li>Oracle WebLogic&reg; Server, version 9.2-10.3.5(11gR1)</li>
+        <li>IBM WebSphere&reg; Application Server, version 6.1-8.0</li>
+        <li>JBoss Application Server, 3.2.8-7.0</li>
+        <li>Jetty, version 5.0-7.0</li>
+        <li>Glassfish, version 2.0-3.1</li>
+      </ul>
+
+      <p>
+        Vaadin supports JSR-168 and JSR-286 Portlet specifications. All portals that
+        implement either of the portlet specifications should work. The following
+        <b>portals</b> are supported:
+      </p>
+
+      <ul>
+        <li>Liferay Portal 5.2-6.1</li>
+        <li>GateIn Portal 3.1</li>
+        <li>eXo Platform 3</li>
+        <li>Oracle WebLogic&reg; Portal 10gR3</li>
+        <li>WebSphere Portal 6.1-7.0</li>
+      </ul>
+
+      <p>
+        Vaadin also supports <b>Google App Engine</b>.
+      </p>
+
+      <p>
+        Vaadin supports the following <b>browsers</b>:
+      </p>
+
+      <ul>
+        <li>Mozilla Firefox 3-24</li>
+        <li>Internet Explorer 6-11</li>
+        <li>Safari 4-6</li>
+        <li>Opera 10-16</li>
+        <li>Google Chrome 13-29</li>
+      </ul>
+
+      <p>
+        Vaadin supports the built-in browsers in the following <b>mobile operating
+        systems</b>:
+      </p>
+
+      <ul>
+        <li>iOS 4-7</li>
+        <li>Android 2-4</li>
+      </ul>
+
+		<p>Vaadin SQL Container supports the following databases:</p>
+		<ul>
+			<li>HSQLDB</li>
+			<li>MySQL</li>
+			<li>MSSQL</li>
+			<li>Oracle</li>
+			<li>PostgreSQL</li>
+		</ul>
+      <!-- ================================================================ -->
+      <h2 id="vaadinontheweb">Vaadin on the Web</h2>
+
+      <ul>
+        <li><a href="http://vaadin.com">vaadin.com - The developer portal containing
+        everything you need to know about Vaadin</a></li>
+
+        <li><a href="http://demo.vaadin.com">demo.vaadin.com - A collection of demos for
+        Vaadin</a></li>
+
+        <li><a href="http://vaadin.com/learn">vaadin.com/learn - Getting started with
+        Vaadin</a></li>
+
+        <li><a href="http://vaadin.com/forum">vaadin.com/forum - Forums for Vaadin related
+        discussions</a></li>
+
+        <li><a href="http://vaadin.com/book">vaadin.com/book - Book of Vaadin - everything
+        you need to know about Vaadin</a></li>
+
+        <li><a href="http://vaadin.com/api">vaadin.com/api - Online javadocs</a></li>
+
+        <li><a href="http://vaadin.com/directory">vaadin.com/directory - Add-ons for
+        Vaadin</a></li>
+
+        <li><a href="http://dev.vaadin.com">dev.vaadin.com - Bug tracker</a></li>
+
+        <li><a
+        href="http://dev.vaadin.com/svn/versions/@version-minor@">dev.vaadin.com/svn/versions/@version-minor@
+        - Source code </a> </li>
+
+        <li><a href="http://vaadin.com/pro-account">vaadin.com/pro-account
+            - Commercial support and tools for Vaadin development </a></li>
+
+        <li><a href="http://vaadin.com/services">vaadin.com/services
+            - Expert services for Vaadin</a> </li>
+
+        <li><a href="http://vaadin.com/company">vaadin.com/company
+            - Information about the company behind Vaadin </a></li>
+      </ul>
+	</div> <!-- /content-->
+
+	<div id="footer">
+      <span class="slogan"><strong>vaadin <em>}&gt;</em> </strong> thinking of U and I<span>
+      <a href="#top">&uarr; Back to top</a>
+	</div> <!-- /footer -->
+
+  </body>
+</html>
+
+<!-- Keep this comment at the end of the file
+Local variables:
+mode: xml
+sgml-omittag:nil
+sgml-shorttag:nil
+sgml-namecase-general:nil
+sgml-general-insert-case:lower
+sgml-minimize-attributes:nil
+sgml-always-quote-attributes:t
+sgml-indent-step:2
+sgml-indent-data:t
+sgml-parent-document:nil
+sgml-exposed-tags:nil
+sgml-local-catalogs:("/etc/sgml/catalog" "/usr/share/xemacs21/xemacs-packages/etc/psgml-dtds/CATALOG")
+sgml-local-ecat-files:("ECAT" "~/sgml/ECAT" "/usr/share/sgml/ECAT" "/usr/local/share/sgml/ECAT" "/usr/local/lib/sgml/ECAT")
+End:
+-->

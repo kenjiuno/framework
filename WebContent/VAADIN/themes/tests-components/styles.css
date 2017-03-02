@@ -1,0 +1,39 @@
+@import url(../reindeer/styles.css);
+
+.missing {
+	color: red;
+	font-weight: bold;
+}
+
+.v-tree-node-caption-red {
+	color: red;
+}
+
+.v-tree-node-caption-green {
+	color: green;
+}
+
+.v-tree-node-caption-blue {
+	color: blue;
+}
+
+.v-tree-node-caption-bold {
+	font-weight: bold;
+}
+
+.background-lightblue {
+	background: lightblue;
+}
+
+.border-red-1px {
+	border: 1px solid red;
+}
+
+.border-blue-2px {
+	border: 2px solid blue;
+}
+
+.v-table-row-tables-test-cell-style-red-row,
+.v-table-cell-content-tables-test-cell-style-red-row {
+	background: #f00;
+}
