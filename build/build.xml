@@ -930,9 +930,8 @@
 
     <target name="local-maven-pom.xml">
         <echo>Creating pom.xml for local test build</echo>
-        <fail unless="version.major" message="Major version must be defined in version.major"/>
-        <fail unless="version.minor" message="Major version must be defined in version.minor"/>
-        <property name="vaadin.version.maven" value="${version.major}.${version.minor}" />
+        <fail unless="version" message="A version must be defined in version"/>
+        <property name="vaadin.version.maven" value="${version}-SNAPSHOT" />
         <copy tofile="build/maven/pom.xml">
             <filterchain>
                 <expandproperties />
