@@ -108,8 +108,8 @@ public class MouseEventDetails implements Serializable {
         String[] fields = serializedString.split(",");
 
         instance.button = Integer.parseInt(fields[0]);
-        instance.clientX = Integer.parseInt(fields[1]);
-        instance.clientY = Integer.parseInt(fields[2]);
+        instance.clientX = (int) Double.parseDouble(fields[1]);
+        instance.clientY = (int) Double.parseDouble(fields[2]);
         instance.altKey = Boolean.valueOf(fields[3]).booleanValue();
         instance.ctrlKey = Boolean.valueOf(fields[4]).booleanValue();
         instance.metaKey = Boolean.valueOf(fields[5]).booleanValue();
